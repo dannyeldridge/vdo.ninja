@@ -3260,7 +3260,7 @@
 			session.version = "30.1"; // added director claim-time room admission controls (cap + bypass key + approval queue)
 			session.streamID = session.generateStreamID(); // randomly generates a streamID for this session. You can set your own programmatically if needed
 			
-			session.defaultPassword = "someEncryptionKey123"; // Change this password if self-deploying for added security/privacy
+			session.defaultPassword = "nAUASaFIH7MA7r2Y0PCsDmxS"; // Change this password if self-deploying for added security/privacy
 			// session.salt = location.hostname; // used only if password is not == False. You can change to "session.salt = location.hostname+location.pathname;" for greater deployment isolation
 			
 			session.stunServers = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"]}]; // google + cloudflare stun servers. default
@@ -3378,7 +3378,7 @@
 			// session.GDRIVE_CLIENT_ID = "877199999934-67tq62xxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"; // get your own id/key from Google Cloud
 			// session.GDRIVE_API_KEY = 'AINNNNNNNNNNNNNNN-39s99999999999999999'; // lets you upload to google drive if self hosting.
 			// session.decrypted = session.decodeInvite("U2FsdGVkX1+d58DFIHoO3EQZSuX86ch4PqW2ouztnJ0="); // get a code from invite.cam
-			// session.hidehome = true; // If used, 'hide home' will make the landing page inaccessible, along with hiding a few go-home elements.
+			session.hidehome = true; // If used, 'hide home' will make the landing page inaccessible, along with hiding a few go-home elements.
 			// if ("42" != prompt("enter the password")){document.body.innerHTML = "";window.location.href = "";} // if you want a low-effort password for the site
 			
 		</script>
