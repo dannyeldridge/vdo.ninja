@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Echobend Review Room</title>
+<link rel="icon" href="/brand/favicon.svg">
 <link rel="stylesheet" href="/echobend.css">
 </head>
 <body>
@@ -16,7 +17,7 @@
 -->
 <section class="gate" id="gate">
   <form class="card" id="form" autocomplete="off">
-    <div class="brand"><span class="brand-mark"></span>ECHOBEND <small>Review Room</small></div>
+    <div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span><small>Review Room</small></div>
     <h1>Join the edit session</h1>
     <p class="lede">You're about to watch a live, full-quality feed from the edit bay. Enter the password your producer sent you.</p>
     <div class="session-chip">Session <b id="sessionName">—</b></div>
@@ -32,7 +33,7 @@
 <section class="player" id="player">
   <div class="bar">
     <div class="left">
-      <div class="brand"><span class="brand-mark"></span>ECHOBEND</div>
+      <div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span></div>
       <span class="live" id="live"><i></i><span id="liveText">CONNECTING</span></span>
       <span class="meta" id="meta"></span>
     </div>
@@ -78,8 +79,9 @@
     //   bitrate=12000 request ~12 Mbps
     //   scale=100    never downscale to fit the window
     //   drawing      render + relay shared annotations
+    //   chroma=000   neutral black around the picture (VDO.Ninja defaults to navy)
     frame.src = VDO_BASE + "?view=" + encodeURIComponent(session) +
-      "&codec=h264&bitrate=12000&scale=100&drawing&cleanoutput&label=Client" + extraWss +
+      "&codec=h264&bitrate=12000&scale=100&drawing&cleanoutput&chroma=000&label=Client" + extraWss +
       "#p=" + encodeURIComponent(pw);
     $("stage").appendChild(frame);
     startedAt = Date.now();

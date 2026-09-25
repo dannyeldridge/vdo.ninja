@@ -4,17 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Echobend Go Live</title>
+<link rel="icon" href="/brand/favicon.svg">
 <link rel="stylesheet" href="/echobend.css">
 </head>
 <body>
 <!--
   Staff "Go Live" console. This page sits behind Cloudflare Access
-  (employees sign in with their @echobend.com Google account or an emailed code),
+  (employees sign in with an @echobend.com address and an emailed one-time code),
   so only staff can reach it. The client page (/review/) stays public but password-gated.
 -->
 <div class="bar">
-  <div class="left"><div class="brand"><span class="brand-mark"></span>ECHOBEND <small>Go Live</small></div></div>
-  <div class="right"><span class="meta">Signed in as editor@echobend.com (via Cloudflare Access)</span></div>
+  <div class="left"><div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span><small>Go Live</small></div></div>
+  <div class="right"><span class="meta" id="who" hidden></span></div>
 </div>
 <section class="console">
   <aside>
@@ -68,7 +69,7 @@
     const src = VDO_BASE + "?push=" + sid + "&label=" + encodeURIComponent($("proj").value) +
             // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
       // like a selfie cam. The stream itself is never flipped; this keeps the editor's view identical to the client's.
-      PRESETS[$("preset").value] + "&prefervideocodec=h264&contenthint=detail&drawing&nomirror" + extraSrc + extraWss +
+      PRESETS[$("preset").value] + "&prefervideocodec=h264&contenthint=detail&drawing&nomirror&chroma=000" + extraSrc + extraWss +
       "#p=" + encodeURIComponent(pw);
     $("waiting").remove();
     $("stage").innerHTML = "";
@@ -79,6 +80,18 @@
     $("clientLink").textContent = clientUrl + "\nPassword: " + pw;
     $("go").textContent = "Live · restart with new session";
   };
+  // Who's signed in, straight from Cloudflare Access. Stays hidden when the page
+  // isn't behind Access (local dev), since the endpoint then doesn't exist.
+  fetch("/cdn-cgi/access/get-identity", { credentials: "same-origin" })
+    .then(r => r.ok ? r.json() : null)
+    .then(id => {
+      if (!id || !id.email) return;
+      $("who").textContent = "Signed in as " + id.email + " · ";
+      const out = document.createElement("a");
+      out.href = "/cdn-cgi/access/logout"; out.textContent = "Sign out";
+      $("who").append(out); $("who").hidden = false;
+    })
+    .catch(() => {});
   $("copy").onclick = () => navigator.clipboard?.writeText($("clientLink").textContent);
 })();
 </script>
