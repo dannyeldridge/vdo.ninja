@@ -1,0 +1,7 @@
+node_modules/
+media/
+screenshots/
+
+# upstream ignores these repo-wide; the test tooling needs them
+!package.json
+!package-lock.json

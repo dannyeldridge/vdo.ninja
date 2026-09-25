@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echobend Review Room</title>
+<link rel="stylesheet" href="/echobend.css">
+</head>
+<body>
+<!--
+  Client-facing password page.
+  Link format sent to a client:  /review/?s=<sessionId>&n=<Project name>
+  The password is typed by the client and handed to VDO.Ninja in the URL *fragment* (#p=…),
+  which browsers never send to the server. VDO.Ninja uses it to encrypt the handshake, so a
+  wrong password simply never connects. That is what we detect below.
+-->
+<section class="gate" id="gate">
+  <form class="card" id="form" autocomplete="off">
+    <div class="brand"><span class="brand-mark"></span>ECHOBEND <small>Review Room</small></div>
+    <h1>Join the edit session</h1>
+    <p class="lede">You're about to watch a live, full-quality feed from the edit bay. Enter the password your producer sent you.</p>
+    <div class="session-chip">Session <b id="sessionName">—</b></div>
+    <div style="height:18px"></div>
+    <label for="pw">Session password</label>
+    <input id="pw" type="password" required minlength="4" placeholder="••••••••••" autofocus>
+    <button class="btn btn-primary" type="submit">Enter review room</button>
+    <div class="error" id="err"></div>
+    <p class="fine">Video is sent directly from our edit bay to your browser, encrypted end to end. Nothing is recorded by this page. Best in Chrome, Edge, or Safari on a wired connection.</p>
+  </form>
+</section>
+
+<section class="player" id="player">
+  <div class="bar">
+    <div class="left">
+      <div class="brand"><span class="brand-mark"></span>ECHOBEND</div>
+      <span class="live" id="live"><i></i><span id="liveText">CONNECTING</span></span>
+      <span class="meta" id="meta"></span>
+    </div>
+    <div class="right">
+      <button class="btn small" id="drawBtn" title="Draw on the picture. Everyone in the session sees it.">✎ Draw</button>
+      <button class="btn small" id="fsBtn">⛶ Full screen</button>
+      <button class="btn small" id="leaveBtn">Leave</button>
+    </div>
+  </div>
+  <div class="stage" id="stage">
+    <div class="waiting" id="waiting">Connecting to the edit bay…</div>
+  </div>
+</section>
+
+<script>
+(() => {
+  const VDO_BASE = location.origin + "/";   // VDO.Ninja lives at the site root
+  const q = new URLSearchParams(location.search);
+  const session = q.get("s") || "";
+  const name = q.get("n") || session || "Unknown session";
+  const extraWss = q.get("wss2") ? "&wss2=" + encodeURIComponent(q.get("wss2")) : "";
+  document.getElementById("sessionName").textContent = name;
+  const $ = id => document.getElementById(id);
+  let frame, pollTimer, startedAt;
+
+  if (!session) { $("err").textContent = "This link is missing a session ID. Ask your producer for a new link."; }
+
+  $("form").addEventListener("submit", e => {
+    e.preventDefault();
+    const pw = $("pw").value.trim();
+    if (!/^[A-Za-z0-9]{4,49}$/.test(pw)) { $("err").textContent = "Passwords are letters and numbers only."; return; }
+    if (!session) return;
+    start(pw);
+  });
+
+  function start(pw) {
+    $("gate").style.display = "none";
+    $("player").classList.add("on");
+    frame = document.createElement("iframe");
+    frame.allow = "autoplay; fullscreen; camera; microphone; clipboard-write";
+    // Viewer-side fidelity controls live on the VIEW link:
+    //   codec=h264   ask the editor's browser to encode H.264
+    //   bitrate=12000 request ~12 Mbps
+    //   scale=100    never downscale to fit the window
+    //   drawing      render + relay shared annotations
+    frame.src = VDO_BASE + "?view=" + encodeURIComponent(session) +
+      "&codec=h264&bitrate=12000&scale=100&drawing&cleanoutput&label=Client" + extraWss +
+      "#p=" + encodeURIComponent(pw);
+    $("stage").appendChild(frame);
+    startedAt = Date.now();
+    pollTimer = setInterval(poll, 1000);
+  }
+
+  function remoteVideo() {
+    try { return frame.contentDocument.querySelector('video[id^="videosource_"]'); } catch (e) { return null; }
+  }
+
+  function poll() {
+    const v = remoteVideo();
+    if (v && v.videoWidth > 0) {
+      $("waiting").classList.add("hidden");
+      $("live").classList.add("is-live"); $("liveText").textContent = "LIVE";
+      $("meta").textContent = v.videoWidth + "×" + v.videoHeight;
+      return;
+    }
+    $("live").classList.remove("is-live"); $("liveText").textContent = "WAITING";
+    if (Date.now() - startedAt > 15000) {
+      $("waiting").classList.remove("hidden");
+      $("waiting").innerHTML = "<div><b style='color:var(--text)'>Still waiting for the edit bay.</b><br>Either the session hasn't started yet, or the password doesn't match.<br><br><button class='btn small' style='pointer-events:auto' onclick='location.reload()'>Try again</button></div>";
+    }
+  }
+
+  // "Draw" calls VDO.Ninja's own annotation tool inside the (same-origin) iframe.
+  // Strokes go to the editor, who relays them to every other viewer with &drawing.
+  $("drawBtn").addEventListener("click", () => {
+    const v = remoteVideo(); const w = frame && frame.contentWindow;
+    if (!v || !w || typeof w.drawOnThis !== "function") return;
+    if (v.clearDrawOnVideo) { v.clearDrawOnVideo(); v.clearDrawOnVideo = null; $("drawBtn").classList.remove("toggled"); return; }
+    const clear = w.drawOnThis(v);
+    if (clear) { v.clearDrawOnVideo = clear; $("drawBtn").classList.add("toggled"); }
+  });
+  $("fsBtn").addEventListener("click", () => $("stage").requestFullscreen?.());
+  $("leaveBtn").addEventListener("click", () => { clearInterval(pollTimer); frame?.remove(); location.reload(); });
+})();
+</script>
+</body>
+</html>
