@@ -19,9 +19,7 @@
   <form class="card" id="form" autocomplete="off">
     <div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span><small>Review Room</small></div>
     <h1>Join the edit session</h1>
-    <p class="lede">You're about to watch a live, full-quality feed from the edit bay. Enter the password your producer sent you.</p>
-    <div class="session-chip">Session <b id="sessionName">—</b></div>
-    <div style="height:18px"></div>
+    <div class="session-chip" id="sessionChip">Session <b id="sessionName"></b></div>
     <label for="pw">Session password</label>
     <input id="pw" type="password" required minlength="4" placeholder="••••••••••" autofocus>
     <button class="btn btn-primary" type="submit">Enter review room</button>
@@ -53,13 +51,20 @@
   const VDO_BASE = location.origin + "/";   // VDO.Ninja lives at the site root
   const q = new URLSearchParams(location.search);
   const session = q.get("s") || "";
-  const name = q.get("n") || session || "Unknown session";
+  const name = (q.get("n") || "").trim();
   const extraWss = q.get("wss2") ? "&wss2=" + encodeURIComponent(q.get("wss2")) : "";
-  document.getElementById("sessionName").textContent = name;
+  // The project name is optional; without one, drop the chip rather than show the raw session ID.
+  if (name) document.getElementById("sessionName").textContent = name;
+  else document.getElementById("sessionChip").remove();
   const $ = id => document.getElementById(id);
   let frame, pollTimer, startedAt;
 
-  if (!session) { $("err").textContent = "This link is missing a session ID. Ask your producer for a new link."; }
+  // Without a session ID (?s=) there is nothing a password could unlock, so don't offer the form.
+  if (!session) {
+    document.querySelector("#form h1").textContent = "Use the link from your producer";
+    $("form").querySelectorAll(".session-chip, label, input, button, .error").forEach(el => el.remove());
+    $("form").querySelector(".fine").textContent = "Each review session has its own link. Open the one your producer sent you, then enter the password that came with it.";
+  }
 
   $("form").addEventListener("submit", e => {
     e.preventDefault();

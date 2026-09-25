@@ -11,11 +11,10 @@ ed.on('pageerror', e => console.log('[editor pageerror]', e.message));
 await ed.goto(`${B}/start/?webcam`);
 await ed.waitForTimeout(1000);
 await ed.screenshot({ path: `${SS}/13-editor-console-before.png` });
-await ed.click('#go');
+await ed.fill('#proj', 'Test Project v1'); await ed.click('#go');
 await ed.waitForTimeout(9000);
 await ed.screenshot({ path: `${SS}/14-editor-console-live.png` });
-const txt = await ed.locator('#clientLink').innerText();
-const [link, pwLine] = txt.split('\n'); const pw = pwLine.replace('Password: ', '').trim();
+const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText(), pw = await ed.locator('#clientPw').innerText();
 console.log('client link', link, 'pw', pw);
 
 // client: gate card (desktop + phone)

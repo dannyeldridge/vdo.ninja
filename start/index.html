@@ -17,10 +17,24 @@
   <div class="left"><div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span><small>Go Live</small></div></div>
   <div class="right"><span class="meta" id="who" hidden></span></div>
 </div>
-<section class="console">
+<!-- Shown only while live. Everything in the setup panel is baked into the stream at
+     "Go live", so the panel gives way to what's still useful: the link, copy, and end. -->
+<div class="bar livebar" id="livebar" hidden>
+  <div class="left">
+    <span class="live is-live"><i></i>LIVE</span>
+    <span class="livebar-name" id="liveName"></span>
+    <span class="meta" id="liveMeta"></span>
+  </div>
+  <div class="right">
+    <span class="livebar-link"><span id="clientUrl"></span> · Password <b id="clientPw"></b></span>
+    <button class="btn small" id="copy">Copy link + password</button>
+    <button class="btn small btn-end" id="end">End session</button>
+  </div>
+</div>
+<section class="console" id="console">
   <aside>
     <h2>Start a review session</h2>
-    <div class="field"><label for="proj">Project name</label><input id="proj" type="text" value="Acme Spring Spot v3"></div>
+    <div class="field"><label for="proj">Project name <span style="font-weight:300">(optional, shown to the client)</span></label><input id="proj" type="text" placeholder="e.g. Client – Spot name v3"></div>
     <div class="field"><label for="pw">Client password</label>
       <div class="row"><input id="pw" type="text"><button class="btn small" id="regen" style="flex:0 0 auto">New</button></div></div>
     <div class="field"><label for="preset">Quality preset</label>
@@ -31,11 +45,7 @@
       </select></div>
     <p class="fine" style="margin-top:0">Pick <b>OBS Virtual Camera</b> as the camera, or use OBS's WHIP output (see setup notes).</p>
     <button class="btn btn-primary" id="go">Go live</button>
-    <div style="height:22px"></div>
-    <label>Send this to the client</label>
-    <div class="linkbox" id="clientLink">Press "Go live" first.</div>
-    <div class="row" style="margin-top:8px"><button class="btn small" id="copy">Copy link + password</button></div>
-    <p class="fine">The link and password are separate on purpose. A forwarded link without the password shows nothing.</p>
+    <p class="fine">You'll get a link and a password to send the client. They're separate on purpose: a forwarded link without the password shows nothing.</p>
   </aside>
   <div class="stage" id="stage"><div class="waiting" id="waiting">Your outgoing feed will preview here.</div></div>
 </section>
@@ -62,23 +72,46 @@
   if (q.get("webcam") !== null) {
     $("preset").insertAdjacentHTML("afterbegin", '<option value="demo" selected>540p test pattern (local demo)</option>');
   }
-  let clientUrl = "";
+  let clientUrl = "", clientPw = "";
   $("go").onclick = () => {
+    const proj = $("proj").value.trim();
     const sid = "eb" + rand(10, "abcdefghijkmnopqrstuvwxyz23456789");
     const pw = $("pw").value.trim();
-    const src = VDO_BASE + "?push=" + sid + "&label=" + encodeURIComponent($("proj").value) +
-            // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
+    const src = VDO_BASE + "?push=" + sid + (proj ? "&label=" + encodeURIComponent(proj) : "") +
+      // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
       // like a selfie cam. The stream itself is never flipped; this keeps the editor's view identical to the client's.
-      PRESETS[$("preset").value] + "&prefervideocodec=h264&contenthint=detail&drawing&nomirror&chroma=000" + extraSrc + extraWss +
+      // &nohangupbutton: "End session" in the live strip is the one way out, so the strip never says LIVE after a hang-up.
+      PRESETS[$("preset").value] + "&prefervideocodec=h264&contenthint=detail&drawing&nomirror&chroma=000&nohangupbutton" + extraSrc + extraWss +
       "#p=" + encodeURIComponent(pw);
-    $("waiting").remove();
     $("stage").innerHTML = "";
     const f = document.createElement("iframe");
     f.allow = "autoplay; fullscreen; camera; microphone; display-capture";
     f.src = src; $("stage").appendChild(f);
-    clientUrl = location.origin + "/review/?s=" + sid + "&n=" + encodeURIComponent($("proj").value) + extraWss;
-    $("clientLink").textContent = clientUrl + "\nPassword: " + pw;
-    $("go").textContent = "Live · restart with new session";
+    clientUrl = location.origin + "/review/?s=" + sid + (proj ? "&n=" + encodeURIComponent(proj) : "") + extraWss;
+    clientPw = pw;
+    $("clientUrl").textContent = clientUrl.replace(/^https?:\/\//, "");
+    $("clientPw").textContent = pw;
+    $("liveName").textContent = proj || "Untitled session";
+    $("liveMeta").textContent = $("preset").selectedOptions[0].textContent.split(" · ")[0];
+    $("console").classList.add("is-live"); $("livebar").hidden = false;
+  };
+  // Two clicks to end, so a stray click can't cut off a client mid-review.
+  let endArmed = null;
+  $("end").onclick = () => {
+    if (!endArmed) {
+      $("end").textContent = "Click again to end";
+      endArmed = setTimeout(() => { endArmed = null; $("end").textContent = "End session"; }, 3000);
+      return;
+    }
+    clearTimeout(endArmed); endArmed = null; $("end").textContent = "End session";
+    $("stage").innerHTML = '<div class="waiting" id="waiting">Session ended. Your outgoing feed will preview here.</div>';
+    $("console").classList.remove("is-live"); $("livebar").hidden = true;
+    $("pw").value = newPw();   // every session gets its own password
+  };
+  $("copy").onclick = () => {
+    navigator.clipboard?.writeText(clientUrl + "\nPassword: " + clientPw);
+    $("copy").textContent = "Copied";
+    setTimeout(() => { $("copy").textContent = "Copy link + password"; }, 1500);
   };
   // Who's signed in, straight from Cloudflare Access. Stays hidden when the page
   // isn't behind Access (local dev), since the endpoint then doesn't exist.
@@ -92,7 +125,6 @@
       $("who").append(out); $("who").hidden = false;
     })
     .catch(() => {});
-  $("copy").onclick = () => navigator.clipboard?.writeText($("clientLink").textContent);
 })();
 </script>
 </body>
