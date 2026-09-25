@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const B = 'http://localhost:8080', SS = 'screenshots';
+const B = process.env.BASE_URL || 'http://localhost:8080', SS = 'screenshots';
 const sid = 'echobendDraw' + Math.floor(Math.random()*1e6), pw = 'ClientPass42';
 const browser = await chromium.launch({ args: [
   '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',

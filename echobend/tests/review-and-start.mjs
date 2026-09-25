@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const B = 'http://localhost:8080', SS = 'screenshots';
+const B = process.env.BASE_URL || 'http://localhost:8080', SS = 'screenshots';
 const browser = await chromium.launch({ args: [
   '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--ignore-certificate-errors',
   '--use-file-for-fake-video-capture=media/bars.y4m', '--use-file-for-fake-audio-capture=media/tone.wav',

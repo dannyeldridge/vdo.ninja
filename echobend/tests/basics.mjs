@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const B = 'http://localhost:8080';
+const B = process.env.BASE_URL || 'http://localhost:8080';
 const SS = 'screenshots';
 const sid = 'echobendDemo' + Math.floor(Math.random()*1e6);
 const pw = 'ClientPass42';
