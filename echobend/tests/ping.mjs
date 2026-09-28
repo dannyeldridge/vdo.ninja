@@ -29,7 +29,7 @@ for (const [fx, fy] of [[0.25, 0.3], [0.5, 0.6], [0.75, 0.35]]) {
 }
 await ed.waitForTimeout(300);
 await ed.screenshot({ path: `${SS}/22-editor-sees-three-pings.png` });
-console.log('button after each ping:', states.join(' | '), states.every(s => s === 'Click target') ? 'PASS' : 'FAIL');
+console.log('button after each ping:', states.join(' | '), states.every(s => s === 'Disable Ping') ? 'PASS' : 'FAIL');
 
 await ping.click();   // turn it off
 const off = await ping.innerText();
