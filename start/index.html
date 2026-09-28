@@ -23,7 +23,6 @@
   <div class="left">
     <span class="live is-live"><i></i>LIVE</span>
     <span class="livebar-name" id="liveName"></span>
-    <span class="meta" id="liveMeta"></span>
   </div>
   <div class="right">
     <span class="livebar-link"><span id="clientUrl"></span> · Password <b id="clientPw"></b></span>
@@ -37,15 +36,7 @@
     <div class="field"><label for="proj">Project name <span style="font-weight:300">(optional, shown to the client)</span></label><input id="proj" type="text" placeholder="e.g. Client – Spot name v3"></div>
     <div class="field"><label for="pw">Client password</label>
       <div class="row"><input id="pw" type="text"><button class="btn small" id="regen" style="flex:0 0 auto">New</button></div></div>
-    <div class="field"><label for="preset">Quality preset</label>
-      <select id="preset">
-        <option value="1080">1080p · H.264 · 12 Mbps (default)</option>
-        <option value="4k">2160p · H.264 · 35 Mbps (fast connections only)</option>
-        <option value="720">720p · H.264 · 5 Mbps (weak client internet)</option>
-      </select></div>
-    <p class="fine" style="margin-top:0">Pick <b>OBS Virtual Camera</b> as the camera, or use OBS's WHIP output (see setup notes).</p>
     <button class="btn btn-primary" id="go">Go live</button>
-    <p class="fine">You'll get a link and a password to send the client. They're separate on purpose: a forwarded link without the password shows nothing.</p>
   </aside>
   <div class="stage" id="stage"><div class="waiting" id="waiting">Your outgoing feed will preview here.</div></div>
 </section>
@@ -60,18 +51,6 @@
   const newPw = () => rand(12, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789");
   $("pw").value = newPw();
   $("regen").onclick = () => { $("pw").value = newPw(); };
-  // Exact &width/&height, matched to OBS's Virtual Camera output size. In testing, the soft
-  // &quality=0 target silently fell back to 640x360; an exact size held for the whole session.
-  // (An exact size OBS isn't outputting fails loudly with "Camera failed to load" instead.)
-  const PRESETS = {
-    "1080": "&width=1920&height=1080&maxvideobitrate=12000",
-    "4k":   "&width=3840&height=2160&maxvideobitrate=35000",
-    "720":  "&width=1280&height=720&maxvideobitrate=5000",
-    "demo": "&width=960&height=540&maxvideobitrate=12000"
-  };
-  if (q.get("webcam") !== null) {
-    $("preset").insertAdjacentHTML("afterbegin", '<option value="demo" selected>540p test pattern (local demo)</option>');
-  }
   let clientUrl = "", clientPw = "";
   $("go").onclick = () => {
     const proj = $("proj").value.trim();
@@ -81,7 +60,7 @@
       // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
       // like a selfie cam. The stream itself is never flipped; this keeps the editor's view identical to the client's.
       // &nohangupbutton: "End session" in the live strip is the one way out, so the strip never says LIVE after a hang-up.
-      PRESETS[$("preset").value] + "&prefervideocodec=h264&contenthint=detail&drawing&nomirror&chroma=000&nohangupbutton" + extraSrc + extraWss +
+      "&contenthint=detail&drawing&nomirror&chroma=000&nohangupbutton" + extraSrc + extraWss +
       "#p=" + encodeURIComponent(pw);
     $("stage").innerHTML = "";
     const f = document.createElement("iframe");
@@ -92,7 +71,6 @@
     $("clientUrl").textContent = clientUrl.replace(/^https?:\/\//, "");
     $("clientPw").textContent = pw;
     $("liveName").textContent = proj || "Untitled session";
-    $("liveMeta").textContent = $("preset").selectedOptions[0].textContent.split(" · ")[0];
     $("console").classList.add("is-live"); $("livebar").hidden = false;
   };
   // Two clicks to end, so a stray click can't cut off a client mid-review.

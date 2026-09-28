@@ -5,7 +5,6 @@ const b = await chromium.launch({ args: ['--use-fake-device-for-media-stream','-
 const mk = async () => (await b.newContext({ viewport: { width: 1360, height: 800 }, permissions: ['camera','microphone'] })).newPage();
 const ed = await mk();
 await ed.goto(`${B}/start/`); await ed.waitForTimeout(800);
-await ed.evaluate(() => { const s = document.getElementById('preset'); s.insertAdjacentHTML('afterbegin', '<option value="demo">demo</option>'); s.value = 'demo'; });
 await ed.fill('#proj', 'Test Project v1'); await ed.click('#go'); await ed.waitForTimeout(4000);
 const f = ed.frameLocator('iframe');
 await f.getByText('Share your Camera').click(); await ed.waitForTimeout(4000);
