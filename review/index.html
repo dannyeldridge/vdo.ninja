@@ -12,7 +12,9 @@
   Client-facing password page.
   Link format sent to a client:  /review/?s=<sessionId>&n=<Project name>&password=<pw>
   Like VDO.Ninja's own share links, the password rides in the link (password, pw or p), and the
-  page joins straight away. Without one, the client types it into the form instead.
+  card shrinks to a single Join button. Without one, the client types it into the form instead.
+  Either way a click is needed: browsers won't start video with sound until the page has been
+  interacted with, and auto-joining left the picture black until the client clicked it.
   Either way it's handed to VDO.Ninja in the iframe's URL *fragment* (#p=…). VDO.Ninja uses it to
   encrypt the handshake, so a wrong password simply never connects. That is what we detect below.
 -->
@@ -136,8 +138,13 @@
     canvas.addEventListener("pointerdown", () => { wasArmed = pingBtn.classList.contains("pressed"); }, true);
     canvas.addEventListener("pointerdown", () => { if (wasArmed && !pingBtn.classList.contains("pressed")) pingBtn.click(); });
   }
-  // A link that already carries the password skips the form.
-  if (session && validPw(linkPw)) start(linkPw);
+  // A link that already carries the password skips the typing, not the click (see top comment).
+  if (session && validPw(linkPw)) {
+    $("pw").value = linkPw;
+    $("form").querySelectorAll('label[for="pw"], #pw').forEach(el => el.style.display = "none");
+    const join = $("form").querySelector('button[type="submit"]');
+    join.textContent = "Join review"; join.focus();
+  }
 
   $("fsBtn").addEventListener("click", () => $("stage").requestFullscreen?.());
   // Leaving can't just reload: a link with the password in it would rejoin straight away.

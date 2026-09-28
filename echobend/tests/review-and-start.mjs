@@ -4,7 +4,10 @@ const browser = await chromium.launch({ args: [
   '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--ignore-certificate-errors',
   '--use-file-for-fake-video-capture=media/bars.y4m', '--use-file-for-fake-audio-capture=media/tone.wav',
   '--autoplay-policy=no-user-gesture-required'] });
-const mk = async (w=1280,h=760) => (await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: w, height: h }, permissions: ['camera','microphone','clipboard-read','clipboard-write'] })).newPage();
+// The client gets a browser with the real desktop autoplay rule (video with sound needs a click),
+// so a join path that skips the click shows up as a paused video instead of passing silently.
+const clientBrowser = await chromium.launch({ args: ['--autoplay-policy=document-user-activation-required'] });
+const mk = async (w=1280,h=760,br=browser) => (await br.newContext({ ignoreHTTPSErrors: true, viewport: { width: w, height: h }, permissions: ['camera','microphone','clipboard-read','clipboard-write'] })).newPage();
 
 const ed = await mk(1360, 800);
 ed.on('pageerror', e => console.log('[editor pageerror]', e.message));
@@ -20,7 +23,7 @@ const bare = new URL(link); bare.searchParams.delete('password');
 console.log('client link', link);
 
 // client: gate card (desktop + phone)
-const cl = await mk();
+const cl = await mk(1280, 760, clientBrowser);
 cl.on('pageerror', e => console.log('[client pageerror]', e.message));
 await cl.goto(bare.href); await cl.waitForTimeout(800);
 await cl.screenshot({ path: `${SS}/15-gate-card.png` });
@@ -29,10 +32,14 @@ await phone.goto(bare.href); await phone.waitForTimeout(800);
 await phone.screenshot({ path: `${SS}/16-gate-card-phone.png` });
 await phone.context().close();
 
-await cl.goto(link);   // password in the link: joins without the form
+await cl.goto(link); await cl.waitForTimeout(800);
+await cl.screenshot({ path: `${SS}/15b-gate-join-button.png` });
+await cl.click('button[type=submit]');   // password in the link: one click, no typing
 await cl.waitForTimeout(16000);
 await cl.screenshot({ path: `${SS}/17-gate-player-live.png` });
 console.log('live text', await cl.locator('#liveText').innerText(), await cl.locator('#meta').innerText());
+const paused = await cl.evaluate(() => document.querySelector('iframe').contentDocument.querySelector('video[id^="videosource_"]')?.paused);
+console.log('client video playing:', paused === false ? 'PASS' : 'FAIL (paused=' + paused + ')');
 
 // draw from the gate's Draw button
 await cl.click('#drawBtn'); await cl.waitForTimeout(1500);
@@ -52,4 +59,4 @@ const bad = await mk();
 await bad.goto(bare.href); await bad.fill('#pw', 'WrongPassword1'); await bad.click('button[type=submit]');
 await bad.waitForTimeout(18000);
 await bad.screenshot({ path: `${SS}/20-gate-wrong-password.png` });
-await browser.close();
+await browser.close(); await clientBrowser.close();

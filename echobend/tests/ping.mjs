@@ -14,7 +14,7 @@ const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerTe
 
 const cl = await mk();
 cl.on('pageerror', e => console.log('[client pageerror]', e.message));
-await cl.goto(link); await cl.waitForTimeout(14000);
+await cl.goto(link); await cl.click('button[type=submit]'); await cl.waitForTimeout(14000);
 console.log('client', await cl.locator('#liveText').innerText());
 await cl.click('#drawBtn'); await cl.waitForTimeout(1000);
 const fr = cl.frameLocator('iframe');

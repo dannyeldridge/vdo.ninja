@@ -12,7 +12,7 @@ await f.locator('#gowebcam:visible').click({ force: true }); // START pulses, so
 await ed.waitForTimeout(5000);
 await ed.screenshot({ path: `screenshots/manual-${tag}-editor.png` });
 const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText();
-const cl = await mk(); await cl.goto(link);
+const cl = await mk(); await cl.goto(link); await cl.click('button[type=submit]');
 await cl.waitForTimeout(15000);
 console.log(tag, 'client:', await cl.locator('#liveText').innerText(), await cl.locator('#meta').innerText());
 await b.close();
