@@ -122,8 +122,20 @@
     if (!v || !w || typeof w.drawOnThis !== "function") return;
     if (v.clearDrawOnVideo) { v.clearDrawOnVideo(); v.clearDrawOnVideo = null; $("drawBtn").classList.remove("toggled"); return; }
     const clear = w.drawOnThis(v);
-    if (clear) { v.clearDrawOnVideo = clear; $("drawBtn").classList.add("toggled"); }
+    if (clear) { v.clearDrawOnVideo = clear; $("drawBtn").classList.add("toggled"); keepPingArmed(v.canvas); }
   });
+
+  // VDO.Ninja's Ping is one-shot: each click on the picture drops a ping and disarms the button.
+  // Re-arm it after every ping so a client can point at several things in a row; clicking the
+  // button ("Click target") or switching to drawing still turns it off. Relies on upstream's
+  // button label and "pressed" class, so re-test after VDO.Ninja updates.
+  function keepPingArmed(canvas) {
+    const pingBtn = canvas && [...canvas.parentNode.querySelectorAll(".buttonContainer button")].find(b => b.textContent === "Ping");
+    if (!pingBtn) return;
+    let wasArmed = false;
+    canvas.addEventListener("pointerdown", () => { wasArmed = pingBtn.classList.contains("pressed"); }, true);
+    canvas.addEventListener("pointerdown", () => { if (wasArmed && !pingBtn.classList.contains("pressed")) pingBtn.click(); });
+  }
   // A link that already carries the password skips the form.
   if (session && validPw(linkPw)) start(linkPw);
 
