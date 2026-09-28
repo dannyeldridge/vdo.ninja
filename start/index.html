@@ -11,7 +11,8 @@
 <!--
   Staff "Go Live" console. This page sits behind Cloudflare Access
   (employees sign in with an @echobend.com address and an emailed one-time code),
-  so only staff can reach it. The client page (/review/) stays public but password-gated.
+  so only staff can reach it. The client page (/review/) stays public but password-gated;
+  the client link carries the password (&password=…), the same way VDO.Ninja's own share links do.
 -->
 <div class="bar">
   <div class="left"><div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span><small>Go Live</small></div></div>
@@ -25,8 +26,8 @@
     <span class="livebar-name" id="liveName"></span>
   </div>
   <div class="right">
-    <span class="livebar-link"><span id="clientUrl"></span> · Password <b id="clientPw"></b></span>
-    <button class="btn small" id="copy">Copy link + password</button>
+    <span class="livebar-link" id="clientUrl"></span>
+    <button class="btn small" id="copy">Copy client link</button>
     <button class="btn small btn-end" id="end">End session</button>
   </div>
 </div>
@@ -51,7 +52,7 @@
   const newPw = () => rand(12, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789");
   $("pw").value = newPw();
   $("regen").onclick = () => { $("pw").value = newPw(); };
-  let clientUrl = "", clientPw = "";
+  let clientUrl = "";
   $("go").onclick = () => {
     const proj = $("proj").value.trim();
     const sid = "eb" + rand(10, "abcdefghijkmnopqrstuvwxyz23456789");
@@ -66,10 +67,9 @@
     const f = document.createElement("iframe");
     f.allow = "autoplay; fullscreen; camera; microphone; display-capture";
     f.src = src; $("stage").appendChild(f);
-    clientUrl = location.origin + "/review/?s=" + sid + (proj ? "&n=" + encodeURIComponent(proj) : "") + extraWss;
-    clientPw = pw;
+    clientUrl = location.origin + "/review/?s=" + sid + (proj ? "&n=" + encodeURIComponent(proj) : "") +
+      "&password=" + encodeURIComponent(pw) + extraWss;
     $("clientUrl").textContent = clientUrl.replace(/^https?:\/\//, "");
-    $("clientPw").textContent = pw;
     $("liveName").textContent = proj || "Untitled session";
     $("console").classList.add("is-live"); $("livebar").hidden = false;
   };
@@ -87,9 +87,9 @@
     $("pw").value = newPw();   // every session gets its own password
   };
   $("copy").onclick = () => {
-    navigator.clipboard?.writeText(clientUrl + "\nPassword: " + clientPw);
+    navigator.clipboard?.writeText(clientUrl);
     $("copy").textContent = "Copied";
-    setTimeout(() => { $("copy").textContent = "Copy link + password"; }, 1500);
+    setTimeout(() => { $("copy").textContent = "Copy client link"; }, 1500);
   };
   // Who's signed in, straight from Cloudflare Access. Stays hidden when the page
   // isn't behind Access (local dev), since the endpoint then doesn't exist.

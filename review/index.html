@@ -10,10 +10,11 @@
 <body>
 <!--
   Client-facing password page.
-  Link format sent to a client:  /review/?s=<sessionId>&n=<Project name>
-  The password is typed by the client and handed to VDO.Ninja in the URL *fragment* (#p=…),
-  which browsers never send to the server. VDO.Ninja uses it to encrypt the handshake, so a
-  wrong password simply never connects. That is what we detect below.
+  Link format sent to a client:  /review/?s=<sessionId>&n=<Project name>&password=<pw>
+  Like VDO.Ninja's own share links, the password rides in the link (password, pw or p), and the
+  page joins straight away. Without one, the client types it into the form instead.
+  Either way it's handed to VDO.Ninja in the iframe's URL *fragment* (#p=…). VDO.Ninja uses it to
+  encrypt the handshake, so a wrong password simply never connects. That is what we detect below.
 -->
 <section class="gate" id="gate">
   <form class="card" id="form" autocomplete="off">
@@ -52,6 +53,7 @@
   const q = new URLSearchParams(location.search);
   const session = q.get("s") || "";
   const name = (q.get("n") || "").trim();
+  const linkPw = (q.get("password") || q.get("pw") || q.get("p") || "").trim();   // same aliases VDO.Ninja accepts
   const extraWss = q.get("wss2") ? "&wss2=" + encodeURIComponent(q.get("wss2")) : "";
   // The project name is optional; without one, drop the chip rather than show the raw session ID.
   if (name) document.getElementById("sessionName").textContent = name;
@@ -63,13 +65,14 @@
   if (!session) {
     document.querySelector("#form h1").textContent = "Use the link from your producer";
     $("form").querySelectorAll(".session-chip, label, input, button, .error").forEach(el => el.remove());
-    $("form").querySelector(".fine").textContent = "Each review session has its own link. Open the one your producer sent you, then enter the password that came with it.";
+    $("form").querySelector(".fine").textContent = "Each review session has its own link. Open the one your producer sent you.";
   }
 
+  const validPw = pw => /^[A-Za-z0-9]{4,49}$/.test(pw);
   $("form").addEventListener("submit", e => {
     e.preventDefault();
     const pw = $("pw").value.trim();
-    if (!/^[A-Za-z0-9]{4,49}$/.test(pw)) { $("err").textContent = "Passwords are letters and numbers only."; return; }
+    if (!validPw(pw)) { $("err").textContent = "Passwords are letters and numbers only."; return; }
     if (!session) return;
     start(pw);
   });
@@ -121,8 +124,17 @@
     const clear = w.drawOnThis(v);
     if (clear) { v.clearDrawOnVideo = clear; $("drawBtn").classList.add("toggled"); }
   });
+  // A link that already carries the password skips the form.
+  if (session && validPw(linkPw)) start(linkPw);
+
   $("fsBtn").addEventListener("click", () => $("stage").requestFullscreen?.());
-  $("leaveBtn").addEventListener("click", () => { clearInterval(pollTimer); frame?.remove(); location.reload(); });
+  // Leaving can't just reload: a link with the password in it would rejoin straight away.
+  $("leaveBtn").addEventListener("click", () => {
+    clearInterval(pollTimer); frame?.remove(); frame = null;
+    $("live").classList.remove("is-live"); $("liveText").textContent = "LEFT"; $("meta").textContent = "";
+    $("waiting").classList.remove("hidden");
+    $("waiting").innerHTML = "<div><b style='color:var(--text)'>You left the review.</b><br><br><button class='btn small' style='pointer-events:auto' onclick='location.reload()'>Rejoin</button></div>";
+  });
 })();
 </script>
 </body>

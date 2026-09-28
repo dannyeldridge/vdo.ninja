@@ -14,20 +14,22 @@ await ed.screenshot({ path: `${SS}/13-editor-console-before.png` });
 await ed.fill('#proj', 'Test Project v1'); await ed.click('#go');
 await ed.waitForTimeout(9000);
 await ed.screenshot({ path: `${SS}/14-editor-console-live.png` });
-const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText(), pw = await ed.locator('#clientPw').innerText();
-console.log('client link', link, 'pw', pw);
+// The client link carries the password (&password=…); strip it to show the typed-password gate.
+const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText();
+const bare = new URL(link); bare.searchParams.delete('password');
+console.log('client link', link);
 
 // client: gate card (desktop + phone)
 const cl = await mk();
 cl.on('pageerror', e => console.log('[client pageerror]', e.message));
-await cl.goto(link); await cl.waitForTimeout(800);
+await cl.goto(bare.href); await cl.waitForTimeout(800);
 await cl.screenshot({ path: `${SS}/15-gate-card.png` });
 const phone = await mk(390, 780);
-await phone.goto(link); await phone.waitForTimeout(800);
+await phone.goto(bare.href); await phone.waitForTimeout(800);
 await phone.screenshot({ path: `${SS}/16-gate-card-phone.png` });
 await phone.context().close();
 
-await cl.fill('#pw', pw); await cl.click('button[type=submit]');
+await cl.goto(link);   // password in the link: joins without the form
 await cl.waitForTimeout(16000);
 await cl.screenshot({ path: `${SS}/17-gate-player-live.png` });
 console.log('live text', await cl.locator('#liveText').innerText(), await cl.locator('#meta').innerText());
@@ -47,7 +49,7 @@ await ed.screenshot({ path: `${SS}/19-editor-sees-client-drawing.png` });
 
 // wrong password on the gate
 const bad = await mk();
-await bad.goto(link); await bad.fill('#pw', 'WrongPassword1'); await bad.click('button[type=submit]');
+await bad.goto(bare.href); await bad.fill('#pw', 'WrongPassword1'); await bad.click('button[type=submit]');
 await bad.waitForTimeout(18000);
 await bad.screenshot({ path: `${SS}/20-gate-wrong-password.png` });
 await browser.close();

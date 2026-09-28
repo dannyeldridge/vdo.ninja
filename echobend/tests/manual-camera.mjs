@@ -11,8 +11,8 @@ await f.getByText('Share your Camera').click(); await ed.waitForTimeout(4000);
 await f.locator('#gowebcam:visible').click({ force: true }); // START pulses, so Playwright never sees it as "stable"
 await ed.waitForTimeout(5000);
 await ed.screenshot({ path: `screenshots/manual-${tag}-editor.png` });
-const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText(), pw = await ed.locator('#clientPw').innerText();
-const cl = await mk(); await cl.goto(link); await cl.fill('#pw', pw); await cl.click('button[type=submit]');
+const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText();
+const cl = await mk(); await cl.goto(link);
 await cl.waitForTimeout(15000);
 console.log(tag, 'client:', await cl.locator('#liveText').innerText(), await cl.locator('#meta').innerText());
 await b.close();
