@@ -24,6 +24,7 @@
   <div class="left">
     <span class="live is-live"><i></i>LIVE</span>
     <span class="livebar-name" id="liveName"></span>
+    <span class="livebar-mode" id="liveMode"></span>
   </div>
   <div class="right">
     <span class="livebar-link" id="clientUrl"></span>
@@ -37,6 +38,11 @@
     <div class="field"><label for="proj">Project name <span style="font-weight:300">(optional, shown to the client)</span></label><input id="proj" type="text" placeholder="e.g. Client – Spot name v3"></div>
     <div class="field"><label for="pw">Client password</label>
       <div class="row"><input id="pw" type="text"><button class="btn small" id="regen" style="flex:0 0 auto">New</button></div></div>
+    <div class="field"><label for="delivery">Video delivery</label>
+      <select id="delivery">
+        <option value="direct">Direct (up to about 5 viewers)</option>
+        <option value="fanout">Fan-out through Cloudflare (more viewers)</option>
+      </select></div>
     <button class="btn btn-primary" id="go">Go live</button>
   </aside>
   <div class="stage" id="stage"><div class="waiting" id="waiting">Your outgoing feed will preview here.</div></div>
@@ -48,6 +54,11 @@
   const q = new URLSearchParams(location.search);
   const extraWss = q.get("wss2") ? "&wss2=" + encodeURIComponent(q.get("wss2")) : "";
   const extraSrc = q.get("webcam") !== null ? "&webcam&autostart" : "";
+  if (q.has("fanout")) $("delivery").value = "fanout";
+  // Fan-out: the edit bay sends one WHIP copy to Cloudflare Realtime SFU (functions/start/sfu/publish).
+  // The publish response's `whep` header tells VDO.Ninja where viewers should pull from,
+  // so the client link doesn't change. 4000 kbps matches Direct mode's stock camera target.
+  const fanoutParams = sid => "&whipout=" + encodeURIComponent(location.origin + "/start/sfu/publish/" + sid) + "&whipoutvideobitrate=4000";
   const rand = (n, set) => Array.from(crypto.getRandomValues(new Uint32Array(n)), x => set[x % set.length]).join("");
   const newPw = () => rand(12, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789");
   $("pw").value = newPw();
@@ -57,11 +68,13 @@
     const proj = $("proj").value.trim();
     const sid = "eb" + rand(10, "abcdefghijkmnopqrstuvwxyz23456789");
     const pw = $("pw").value.trim();
+    const fanout = $("delivery").value === "fanout";
     const src = VDO_BASE + "?push=" + sid + (proj ? "&label=" + encodeURIComponent(proj) : "") +
       // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
       // like a selfie cam. The stream itself is never flipped; this keeps the editor's view identical to the client's.
       // &nohangupbutton: "End session" in the live strip is the one way out, so the strip never says LIVE after a hang-up.
       "&contenthint=detail&drawing&nomirror&chroma=000&nohangupbutton" + extraSrc + extraWss +
+      (fanout ? fanoutParams(sid) : "") +
       "#p=" + encodeURIComponent(pw);
     $("stage").innerHTML = "";
     const f = document.createElement("iframe");
@@ -71,6 +84,7 @@
       "&password=" + encodeURIComponent(pw) + extraWss;
     $("clientUrl").textContent = clientUrl.replace(/^https?:\/\//, "");
     $("liveName").textContent = proj || "Untitled session";
+    $("liveMode").textContent = fanout ? "Fan-out" : "Direct";
     $("console").classList.add("is-live"); $("livebar").hidden = false;
   };
   // Two clicks to end, so a stray click can't cut off a client mid-review.

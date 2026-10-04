@@ -86,6 +86,7 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px r
 .livebar[hidden] { display: none; }
 .livebar { background: var(--panel); }
 .livebar-name { font-weight: 600; font-size: 14px; }
+.livebar-mode { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
 .livebar-link { font-size: 12px; font-weight: 300; color: var(--muted); font-family: ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
 .livebar-link b { color: var(--text); font-weight: 400; }
 .btn-end { border-color: rgba(232,55,36,.5); }
