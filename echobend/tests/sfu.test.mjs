@@ -104,3 +104,13 @@ test('play refuses an unexpected renegotiation', async () => {
   });
   assert.equal((await play(ctx(req('https://x/sfu/play/PUB/ta'), ['PUB', 'ta']))).status, 502);
 });
+
+test('publish health check: 200 when the SFU answers, 502 when it does not', async () => {
+  stub({ '/sessions/new': [201, { sessionId: 'H' }] });
+  const ok = await publish(ctx(req('https://x/start/sfu/publish/health', 'GET'), ['health']));
+  assert.equal(ok.status, 200);
+  stub({ '/sessions/new': [401, { errorCode: 'unauthorized', errorDescription: 'Invalid bearer token' }] });
+  const bad = await publish(ctx(req('https://x/start/sfu/publish/health', 'GET'), ['health']));
+  assert.equal(bad.status, 502);
+  assert.match(await bad.text(), /Invalid bearer token/);
+});

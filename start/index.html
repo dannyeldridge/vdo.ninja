@@ -64,11 +64,15 @@
   $("pw").value = newPw();
   $("regen").onclick = () => { $("pw").value = newPw(); };
   let clientUrl = "";
-  $("go").onclick = () => {
+  $("go").onclick = async () => {
     const proj = $("proj").value.trim();
     const sid = "eb" + rand(10, "abcdefghijkmnopqrstuvwxyz23456789");
     const pw = $("pw").value.trim();
-    const fanout = $("delivery").value === "fanout";
+    let fanout = $("delivery").value === "fanout", fanoutDown = false;
+    // If Cloudflare can't take the upload, clients would sit on a black screen, so go Direct instead.
+    if (fanout && !(await fetch("/start/sfu/publish/health").catch(() => null))?.ok) {
+      fanout = false; fanoutDown = true; $("delivery").value = "direct";
+    }
     const src = VDO_BASE + "?push=" + sid + (proj ? "&label=" + encodeURIComponent(proj) : "") +
       // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
       // like a selfie cam. The stream itself is never flipped; this keeps the editor's view identical to the client's.
@@ -84,7 +88,7 @@
       "&password=" + encodeURIComponent(pw) + extraWss;
     $("clientUrl").textContent = clientUrl.replace(/^https?:\/\//, "");
     $("liveName").textContent = proj || "Untitled session";
-    $("liveMode").textContent = fanout ? "Fan-out" : "Direct";
+    $("liveMode").textContent = fanout ? "Fan-out" : fanoutDown ? "Direct (fan-out unavailable)" : "Direct";
     $("console").classList.add("is-live"); $("livebar").hidden = false;
   };
   // Two clicks to end, so a stray click can't cut off a client mid-review.
