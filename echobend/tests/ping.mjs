@@ -8,7 +8,7 @@ const browser = await chromium.launch({ args: [
 const mk = async (w=1280,h=760) => (await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: w, height: h }, permissions: ['camera','microphone'] })).newPage();
 
 const ed = await mk(1360, 800);
-await ed.goto(`${B}/start/?webcam`); await ed.waitForTimeout(1000);
+await ed.goto(`${B}/start/?webcam${process.env.FANOUT ? '&fanout' : ''}`); await ed.waitForTimeout(1000);
 await ed.click('#go'); await ed.waitForTimeout(8000);
 const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText();
 

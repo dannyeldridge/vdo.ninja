@@ -11,7 +11,7 @@ const mk = async (w=1280,h=760,br=browser) => (await br.newContext({ ignoreHTTPS
 
 const ed = await mk(1360, 800);
 ed.on('pageerror', e => console.log('[editor pageerror]', e.message));
-await ed.goto(`${B}/start/?webcam`);
+await ed.goto(`${B}/start/?webcam${process.env.FANOUT ? '&fanout' : ''}`);
 await ed.waitForTimeout(1000);
 await ed.screenshot({ path: `${SS}/13-editor-console-before.png` });
 await ed.fill('#proj', 'Test Project v1'); await ed.click('#go');
