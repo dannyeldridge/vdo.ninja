@@ -40,9 +40,11 @@
       <div class="row"><input id="pw" type="text"><button class="btn small" id="regen" style="flex:0 0 auto">New</button></div></div>
     <div class="field"><label for="delivery">Video delivery</label>
       <select id="delivery">
-        <option value="direct">Direct (up to about 5 viewers)</option>
-        <option value="fanout">Fan-out through Cloudflare (more viewers)</option>
-      </select></div>
+        <option value="direct">Direct (peer to peer)</option>
+        <option value="fanout">Fan-out (Cloudflare)</option>
+      </select>
+      <p class="hint"><b>Direct</b> sends video straight from this computer to each viewer, with the lowest delay. Use it for 8 viewers or fewer.
+        <b>Fan-out</b> uploads once and Cloudflare sends a copy to each viewer. Use it for more than 8, or on a slow connection.</p></div>
     <button class="btn btn-primary" id="go">Go live</button>
   </aside>
   <div class="stage" id="stage"><div class="waiting" id="waiting">Your outgoing feed will preview here.</div></div>

@@ -78,6 +78,8 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px r
 .console aside { border-right: 1px solid var(--line); padding: 24px; overflow: auto; background: var(--panel); }
 .console aside h2 { font-size: 20px; margin: 0 0 20px; }
 .field { margin-bottom: 16px; }
+.field .hint { margin: 8px 0 0; font-size: 12px; font-weight: 300; line-height: 1.5; color: var(--muted); }
+.field .hint b { font-weight: 600; color: var(--text); }
 .row { display: flex; gap: 8px; }
 .row > * { flex: 1; }
 .console .stage { background: #000; }
