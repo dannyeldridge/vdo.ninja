@@ -1,8 +1,8 @@
 /*
  *  Copyright (c) 2026 Steve Seguin. All Rights Reserved.
  *
- *  Use of this source code is governed by the APGLv3 open-source license
- *  that can be found in the LICENSE file in the root of the source
+ *  Use of this source code is governed by the AGPL-3.0 open-source license
+ *  that can be found in the LICENCE.md file in the root of the source
  *  tree. Alternative licencing options can be made available on request.
  *
  */
@@ -7208,7 +7208,7 @@ async function main() {
 
 	if (session.permaid === false && session.roomid === false && session.view === false && session.effect === false && session.director === false) {
 		session.effect = null;
-		getById("credits").innerHTML = "Version: " + session.version + ' <a href="https://github.com/steveseguin/vdoninja" aria-hidden="true" title="Source Code via Github">VDO.Ninja, by Steve Seguin</a> | ' + getById("credits").innerHTML;
+		getById("credits").innerHTML = "Version: " + session.version + ' <a href="https://github.com/dannyeldridge/vdo.ninja" aria-hidden="true" title="Source Code via Github (AGPL-3.0)">VDO.Ninja, by Steve Seguin</a> | ' + getById("credits").innerHTML;
 	}
 
 	if (session.mobile && session.permaid === false && !session.roomid) {
