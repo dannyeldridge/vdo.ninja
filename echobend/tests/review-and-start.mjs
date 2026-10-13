@@ -1,0 +1,62 @@
+import { chromium } from 'playwright';
+const B = process.env.BASE_URL || 'http://localhost:8080', SS = 'screenshots';
+const browser = await chromium.launch({ args: [
+  '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--ignore-certificate-errors',
+  '--use-file-for-fake-video-capture=media/bars.y4m', '--use-file-for-fake-audio-capture=media/tone.wav',
+  '--autoplay-policy=no-user-gesture-required'] });
+// The client gets a browser with the real desktop autoplay rule (video with sound needs a click),
+// so a join path that skips the click shows up as a paused video instead of passing silently.
+const clientBrowser = await chromium.launch({ args: ['--autoplay-policy=document-user-activation-required'] });
+const mk = async (w=1280,h=760,br=browser) => (await br.newContext({ ignoreHTTPSErrors: true, viewport: { width: w, height: h }, permissions: ['camera','microphone','clipboard-read','clipboard-write'] })).newPage();
+
+const ed = await mk(1360, 800);
+ed.on('pageerror', e => console.log('[editor pageerror]', e.message));
+await ed.goto(`${B}/start/?webcam${process.env.FANOUT ? '&fanout' : ''}`);
+await ed.waitForTimeout(1000);
+await ed.screenshot({ path: `${SS}/13-editor-console-before.png` });
+await ed.fill('#proj', 'Test Project v1'); await ed.click('#go');
+await ed.waitForTimeout(9000);
+await ed.screenshot({ path: `${SS}/14-editor-console-live.png` });
+// The client link carries the password (&password=…); strip it to show the typed-password gate.
+const link = new URL(B).protocol + '//' + await ed.locator('#clientUrl').innerText();
+const bare = new URL(link); bare.searchParams.delete('password');
+console.log('client link', link);
+
+// client: gate card (desktop + phone)
+const cl = await mk(1280, 760, clientBrowser);
+cl.on('pageerror', e => console.log('[client pageerror]', e.message));
+await cl.goto(bare.href); await cl.waitForTimeout(800);
+await cl.screenshot({ path: `${SS}/15-gate-card.png` });
+const phone = await mk(390, 780);
+await phone.goto(bare.href); await phone.waitForTimeout(800);
+await phone.screenshot({ path: `${SS}/16-gate-card-phone.png` });
+await phone.context().close();
+
+await cl.goto(link); await cl.waitForTimeout(800);
+await cl.screenshot({ path: `${SS}/15b-gate-join-button.png` });
+await cl.click('button[type=submit]');   // password in the link: one click, no typing
+await cl.waitForTimeout(16000);
+await cl.screenshot({ path: `${SS}/17-gate-player-live.png` });
+console.log('live text', await cl.locator('#liveText').innerText(), await cl.locator('#meta').innerText());
+const paused = await cl.evaluate(() => document.querySelector('iframe').contentDocument.querySelector('video[id^="videosource_"]')?.paused);
+console.log('client video playing:', paused === false ? 'PASS' : 'FAIL (paused=' + paused + ')');
+
+// draw from the gate's Draw button
+await cl.click('#drawBtn'); await cl.waitForTimeout(1500);
+const fr = cl.frameLocator('iframe');
+await fr.getByRole('button', { name: /pen|enable drawing/i }).first().click().catch(e => console.log('pen', e.message));
+const st = await cl.locator('#stage').boundingBox();
+await cl.mouse.move(st.x + st.width*0.30, st.y + st.height*0.25);
+await cl.mouse.down();
+for (let i=0;i<=30;i++){ const a=i/30*Math.PI*2; await cl.mouse.move(st.x+st.width*(0.55+0.16*Math.cos(a)), st.y+st.height*(0.35+0.2*Math.sin(a))); }
+await cl.mouse.up();
+await cl.waitForTimeout(2500);
+await cl.screenshot({ path: `${SS}/18-gate-client-drawing.png` });
+await ed.screenshot({ path: `${SS}/19-editor-sees-client-drawing.png` });
+
+// wrong password on the gate
+const bad = await mk();
+await bad.goto(bare.href); await bad.fill('#pw', 'WrongPassword1'); await bad.click('button[type=submit]');
+await bad.waitForTimeout(18000);
+await bad.screenshot({ path: `${SS}/20-gate-wrong-password.png` });
+await browser.close(); await clientBrowser.close();

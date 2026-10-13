@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echobend Review Room</title>
+<link rel="icon" href="/brand/favicon.svg">
+<link rel="stylesheet" href="/echobend.css">
+</head>
+<body>
+<!--
+  Client-facing password page.
+  Link format sent to a client:  /review/?s=<sessionId>&n=<Project name>&password=<pw>
+  Like VDO.Ninja's own share links, the password rides in the link (password, pw or p), and the
+  card shrinks to a single Join button. Without one, the client types it into the form instead.
+  Either way a click is needed: browsers won't start video with sound until the page has been
+  interacted with, and auto-joining left the picture black until the client clicked it.
+  Either way it's handed to VDO.Ninja in the iframe's URL *fragment* (#p=…). VDO.Ninja uses it to
+  encrypt the handshake, so a wrong password simply never connects. That is what we detect below.
+-->
+<section class="gate" id="gate">
+  <form class="card" id="form" autocomplete="off">
+    <div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span><small>Review Room</small></div>
+    <h1>Join the edit session</h1>
+    <div class="session-chip" id="sessionChip">Session <b id="sessionName"></b></div>
+    <label for="pw">Session password</label>
+    <input id="pw" type="password" required minlength="4" placeholder="••••••••••" autofocus>
+    <button class="btn btn-primary" type="submit">Enter review room</button>
+    <div class="error" id="err"></div>
+    <p class="fine">Video is sent directly from our edit bay to your browser, encrypted end to end. Nothing is recorded by this page. Best in Chrome, Edge, or Safari on a wired connection.</p>
+  </form>
+</section>
+
+<section class="player" id="player">
+  <div class="bar">
+    <div class="left">
+      <div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span></div>
+      <span class="live" id="live"><i></i><span id="liveText">CONNECTING</span></span>
+      <span class="meta" id="meta"></span>
+    </div>
+    <div class="right">
+      <button class="btn small" id="drawBtn" title="Draw on the picture. Everyone in the session sees it.">✎ Draw</button>
+      <button class="btn small" id="fsBtn">⛶ Full screen</button>
+      <button class="btn small" id="leaveBtn">Leave</button>
+    </div>
+  </div>
+  <div class="stage" id="stage">
+    <div class="waiting" id="waiting">Connecting to the edit bay…</div>
+  </div>
+</section>
+
+<script>
+(() => {
+  const VDO_BASE = location.origin + "/";   // VDO.Ninja lives at the site root
+  const q = new URLSearchParams(location.search);
+  const session = q.get("s") || "";
+  const name = (q.get("n") || "").trim();
+  const linkPw = (q.get("password") || q.get("pw") || q.get("p") || "").trim();   // same aliases VDO.Ninja accepts
+  const extraWss = q.get("wss2") ? "&wss2=" + encodeURIComponent(q.get("wss2")) : "";
+  // The project name is optional; without one, drop the chip rather than show the raw session ID.
+  if (name) document.getElementById("sessionName").textContent = name;
+  else document.getElementById("sessionChip").remove();
+  const $ = id => document.getElementById(id);
+  let frame, pollTimer, startedAt;
+
+  // Without a session ID (?s=) there is nothing a password could unlock, so don't offer the form.
+  if (!session) {
+    document.querySelector("#form h1").textContent = "Use the link from your producer";
+    $("form").querySelectorAll(".session-chip, label, input, button, .error").forEach(el => el.remove());
+    $("form").querySelector(".fine").textContent = "Each review session has its own link. Open the one your producer sent you.";
+  }
+
+  const validPw = pw => /^[A-Za-z0-9]{4,49}$/.test(pw);
+  $("form").addEventListener("submit", e => {
+    e.preventDefault();
+    const pw = $("pw").value.trim();
+    if (!validPw(pw)) { $("err").textContent = "Passwords are letters and numbers only."; return; }
+    if (!session) return;
+    start(pw);
+  });
+
+  function start(pw) {
+    $("gate").style.display = "none";
+    $("player").classList.add("on");
+    frame = document.createElement("iframe");
+    frame.allow = "autoplay; fullscreen; camera; microphone; clipboard-write";
+    // Viewer-side fidelity controls live on the VIEW link:
+    //   codec=h264   ask the editor's browser to encode H.264
+    //   bitrate=12000 request ~12 Mbps
+    //   scale=100    never downscale to fit the window
+    //   drawing      render + relay shared annotations
+    //   chroma=000   neutral black around the picture (VDO.Ninja defaults to navy)
+    frame.src = VDO_BASE + "?view=" + encodeURIComponent(session) +
+      "&codec=h264&bitrate=12000&scale=100&drawing&cleanoutput&chroma=000&label=Client" + extraWss +
+      "#p=" + encodeURIComponent(pw);
+    $("stage").appendChild(frame);
+    startedAt = Date.now();
+    pollTimer = setInterval(poll, 1000);
+  }
+
+  function remoteVideo() {
+    try { return frame.contentDocument.querySelector('video[id^="videosource_"]'); } catch (e) { return null; }
+  }
+
+  function poll() {
+    const v = remoteVideo();
+    if (v && v.videoWidth > 0) {
+      $("waiting").classList.add("hidden");
+      $("live").classList.add("is-live"); $("liveText").textContent = "LIVE";
+      $("meta").textContent = v.videoWidth + "×" + v.videoHeight;
+      return;
+    }
+    $("live").classList.remove("is-live"); $("liveText").textContent = "WAITING";
+    if (Date.now() - startedAt > 15000) {
+      $("waiting").classList.remove("hidden");
+      $("waiting").innerHTML = "<div><b style='color:var(--text)'>Still waiting for the edit bay.</b><br>Either the session hasn't started yet, or the password doesn't match.<br><br><button class='btn small' style='pointer-events:auto' onclick='location.reload()'>Try again</button></div>";
+    }
+  }
+
+  // "Draw" calls VDO.Ninja's own annotation tool inside the (same-origin) iframe.
+  // Strokes go to the editor, who relays them to every other viewer with &drawing.
+  $("drawBtn").addEventListener("click", () => {
+    const v = remoteVideo(); const w = frame && frame.contentWindow;
+    if (!v || !w || typeof w.drawOnThis !== "function") return;
+    if (v.clearDrawOnVideo) { v.clearDrawOnVideo(); v.clearDrawOnVideo = null; $("drawBtn").classList.remove("toggled"); return; }
+    const clear = w.drawOnThis(v);
+    if (clear) { v.clearDrawOnVideo = clear; $("drawBtn").classList.add("toggled"); keepPingArmed(v.canvas); }
+  });
+
+  // VDO.Ninja's Ping is one-shot: each click on the picture drops a ping and disarms the button.
+  // Re-arm it after every ping so a client can point at several things in a row; clicking the
+  // button again or switching to drawing still turns it off. Upstream labels the armed button
+  // "Click target"; we relabel it "Disable Ping" to match "Disable Drawing". Relies on upstream's
+  // button labels and "pressed" class, so re-test after VDO.Ninja updates.
+  function keepPingArmed(canvas) {
+    const pingBtn = canvas && [...canvas.parentNode.querySelectorAll(".buttonContainer button")].find(b => b.textContent === "Ping");
+    if (!pingBtn) return;
+    new MutationObserver(() => {
+      if (pingBtn.textContent === "Click target") pingBtn.textContent = "Disable Ping";
+    }).observe(pingBtn, { childList: true, characterData: true, subtree: true });
+    let wasArmed = false;
+    canvas.addEventListener("pointerdown", () => { wasArmed = pingBtn.classList.contains("pressed"); }, true);
+    canvas.addEventListener("pointerdown", () => { if (wasArmed && !pingBtn.classList.contains("pressed")) pingBtn.click(); });
+  }
+  // A link that already carries the password skips the typing, not the click (see top comment).
+  if (session && validPw(linkPw)) {
+    $("pw").value = linkPw;
+    $("form").querySelectorAll('label[for="pw"], #pw').forEach(el => el.style.display = "none");
+    const join = $("form").querySelector('button[type="submit"]');
+    join.textContent = "Join review"; join.focus();
+  }
+
+  $("fsBtn").addEventListener("click", () => $("stage").requestFullscreen?.());
+  // Leaving can't just reload: a link with the password in it would rejoin straight away.
+  $("leaveBtn").addEventListener("click", () => {
+    clearInterval(pollTimer); frame?.remove(); frame = null;
+    $("live").classList.remove("is-live"); $("liveText").textContent = "LEFT"; $("meta").textContent = "";
+    $("waiting").classList.remove("hidden");
+    $("waiting").innerHTML = "<div><b style='color:var(--text)'>You left the review.</b><br><br><button class='btn small' style='pointer-events:auto' onclick='location.reload()'>Rejoin</button></div>";
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echobend Go Live</title>
+<link rel="icon" href="/brand/favicon.svg">
+<link rel="stylesheet" href="/echobend.css">
+</head>
+<body>
+<!--
+  Staff "Go Live" console. This page sits behind Cloudflare Access
+  (employees sign in with an @echobend.com address and an emailed one-time code),
+  so only staff can reach it. The client page (/review/) stays public but password-gated;
+  the client link carries the password (&password=…), the same way VDO.Ninja's own share links do.
+-->
+<div class="bar">
+  <div class="left"><div class="brand"><span class="brand-logo" role="img" aria-label="Echobend"></span><small>Go Live</small></div></div>
+  <div class="right"><span class="meta" id="who" hidden></span></div>
+</div>
+<!-- Shown only while live. Everything in the setup panel is baked into the stream at
+     "Go live", so the panel gives way to what's still useful: the link, copy, and end. -->
+<div class="bar livebar" id="livebar" hidden>
+  <div class="left">
+    <span class="live is-live"><i></i>LIVE</span>
+    <span class="livebar-name" id="liveName"></span>
+    <span class="livebar-mode" id="liveMode"></span>
+  </div>
+  <div class="right">
+    <span class="livebar-link" id="clientUrl"></span>
+    <button class="btn small" id="copy">Copy client link</button>
+    <button class="btn small btn-end" id="end">End session</button>
+  </div>
+</div>
+<section class="console" id="console">
+  <aside>
+    <h2>Start a review session</h2>
+    <div class="field"><label for="proj">Project name <span style="font-weight:300">(optional, shown to the client)</span></label><input id="proj" type="text" placeholder="e.g. Client – Spot name v3"></div>
+    <div class="field"><label for="pw">Client password</label>
+      <div class="row"><input id="pw" type="text"><button class="btn small" id="regen" style="flex:0 0 auto">New</button></div></div>
+    <div class="field"><label for="delivery">Video delivery</label>
+      <select id="delivery">
+        <option value="direct">Direct (peer to peer)</option>
+        <option value="fanout">Fan-out (Cloudflare)</option>
+      </select>
+      <p class="hint"><b>Direct</b> sends video straight from this computer to each viewer, with the lowest delay. Use it for 8 viewers or fewer.
+        <b>Fan-out</b> uploads once and Cloudflare sends a copy to each viewer. Use it for more than 8, or on a slow connection.</p></div>
+    <button class="btn btn-primary" id="go">Go live</button>
+  </aside>
+  <div class="stage" id="stage"><div class="waiting" id="waiting">Your outgoing feed will preview here.</div></div>
+</section>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const VDO_BASE = location.origin + "/";
+  const q = new URLSearchParams(location.search);
+  const extraWss = q.get("wss2") ? "&wss2=" + encodeURIComponent(q.get("wss2")) : "";
+  const extraSrc = q.get("webcam") !== null ? "&webcam&autostart" : "";
+  if (q.has("fanout")) $("delivery").value = "fanout";
+  // Fan-out: the edit bay sends one WHIP copy to Cloudflare Realtime SFU (functions/start/sfu/publish).
+  // The publish response's `whep` header tells VDO.Ninja where viewers should pull from,
+  // so the client link doesn't change. 4000 kbps matches Direct mode's stock camera target.
+  const fanoutParams = sid => "&whipout=" + encodeURIComponent(location.origin + "/start/sfu/publish/" + sid) + "&whipoutvideobitrate=4000";
+  const rand = (n, set) => Array.from(crypto.getRandomValues(new Uint32Array(n)), x => set[x % set.length]).join("");
+  const newPw = () => rand(12, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789");
+  $("pw").value = newPw();
+  $("regen").onclick = () => { $("pw").value = newPw(); };
+  let clientUrl = "";
+  $("go").onclick = async () => {
+    const proj = $("proj").value.trim();
+    const sid = "eb" + rand(10, "abcdefghijkmnopqrstuvwxyz23456789");
+    const pw = $("pw").value.trim();
+    let fanout = $("delivery").value === "fanout", fanoutDown = false;
+    // If Cloudflare can't take the upload, clients would sit on a black screen, so go Direct instead.
+    if (fanout && !(await fetch("/start/sfu/publish/health").catch(() => null))?.ok) {
+      fanout = false; fanoutDown = true; $("delivery").value = "direct";
+    }
+    const src = VDO_BASE + "?push=" + sid + (proj ? "&label=" + encodeURIComponent(proj) : "") +
+      // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
+      // like a selfie cam. The stream itself is never flipped; this keeps the editor's view identical to the client's.
+      // &nohangupbutton: "End session" in the live strip is the one way out, so the strip never says LIVE after a hang-up.
+      "&contenthint=detail&drawing&nomirror&chroma=000&nohangupbutton" + extraSrc + extraWss +
+      (fanout ? fanoutParams(sid) : "") +
+      "#p=" + encodeURIComponent(pw);
+    $("stage").innerHTML = "";
+    const f = document.createElement("iframe");
+    f.allow = "autoplay; fullscreen; camera; microphone; display-capture";
+    f.src = src; $("stage").appendChild(f);
+    clientUrl = location.origin + "/review/?s=" + sid + (proj ? "&n=" + encodeURIComponent(proj) : "") +
+      "&password=" + encodeURIComponent(pw) + extraWss;
+    $("clientUrl").textContent = clientUrl.replace(/^https?:\/\//, "");
+    $("liveName").textContent = proj || "Untitled session";
+    $("liveMode").textContent = fanout ? "Fan-out" : fanoutDown ? "Direct (fan-out unavailable)" : "Direct";
+    $("console").classList.add("is-live"); $("livebar").hidden = false;
+  };
+  // Two clicks to end, so a stray click can't cut off a client mid-review.
+  let endArmed = null;
+  $("end").onclick = () => {
+    if (!endArmed) {
+      $("end").textContent = "Click again to end";
+      endArmed = setTimeout(() => { endArmed = null; $("end").textContent = "End session"; }, 3000);
+      return;
+    }
+    clearTimeout(endArmed); endArmed = null; $("end").textContent = "End session";
+    $("stage").innerHTML = '<div class="waiting" id="waiting">Session ended. Your outgoing feed will preview here.</div>';
+    $("console").classList.remove("is-live"); $("livebar").hidden = true;
+    $("pw").value = newPw();   // every session gets its own password
+  };
+  $("copy").onclick = () => {
+    navigator.clipboard?.writeText(clientUrl);
+    $("copy").textContent = "Copied";
+    setTimeout(() => { $("copy").textContent = "Copy client link"; }, 1500);
+  };
+  // Who's signed in, straight from Cloudflare Access. Stays hidden when the page
+  // isn't behind Access (local dev), since the endpoint then doesn't exist.
+  fetch("/cdn-cgi/access/get-identity", { credentials: "same-origin" })
+    .then(r => r.ok ? r.json() : null)
+    .then(id => {
+      if (!id || !id.email) return;
+      $("who").textContent = "Signed in as " + id.email + " · ";
+      const out = document.createElement("a");
+      out.href = "/cdn-cgi/access/logout"; out.textContent = "Sign out";
+      $("who").append(out); $("who").hidden = false;
+    })
+    .catch(() => {});
+})();
+</script>
+</body>
+</html>
