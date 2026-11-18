@@ -79,7 +79,10 @@
       // &nomirror: VDO.Ninja mirrors the sender's *preview* for most capture cards (Elgato, Magewell…)
       // like a selfie cam. The stream itself is never flipped; this keeps the editor's view identical to the client's.
       // &nohangupbutton: "End session" in the live strip is the one way out, so the strip never says LIVE after a hang-up.
-      "&contenthint=detail&drawing&nomirror&chroma=000&nohangupbutton" + extraSrc + extraWss +
+      // &quality=0: ask the camera for 1080p. Without it VDO.Ninja guesses from CPU threads (judgePerformance)
+      // and starts most laptops, and every Mac, at 720p. &mediasettings keeps the in-session quality
+      // picker, which &quality would otherwise remove, so a weak machine can still drop to 720p.
+      "&quality=0&mediasettings&contenthint=detail&drawing&nomirror&chroma=000&nohangupbutton" + extraSrc + extraWss +
       (fanout ? fanoutParams(sid) : "") +
       "#p=" + encodeURIComponent(pw);
     $("stage").innerHTML = "";
