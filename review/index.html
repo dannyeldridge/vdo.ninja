@@ -57,6 +57,8 @@
   const name = (q.get("n") || "").trim();
   const linkPw = (q.get("password") || q.get("pw") || q.get("p") || "").trim();   // same aliases VDO.Ninja accepts
   const extraWss = q.get("wss2") ? "&wss2=" + encodeURIComponent(q.get("wss2")) : "";
+  // &ff marks a Firefox edit bay (set by /start/). Firefox caps H.264 at 1280x720, so let the browsers pick VP8.
+  const codec = q.has("ff") ? "" : "&codec=h264";
   // The project name is optional; without one, drop the chip rather than show the raw session ID.
   if (name) document.getElementById("sessionName").textContent = name;
   else document.getElementById("sessionChip").remove();
@@ -85,13 +87,13 @@
     frame = document.createElement("iframe");
     frame.allow = "autoplay; fullscreen; camera; microphone; clipboard-write";
     // Viewer-side fidelity controls live on the VIEW link:
-    //   codec=h264   ask the editor's browser to encode H.264
+    //   codec=h264   ask the editor's browser to encode H.264 (not for a Firefox edit bay, see &ff)
     //   bitrate=12000 request ~12 Mbps
     //   scale=100    never downscale to fit the window
     //   drawing      render + relay shared annotations
     //   chroma=000   neutral black around the picture (VDO.Ninja defaults to navy)
     frame.src = VDO_BASE + "?view=" + encodeURIComponent(session) +
-      "&codec=h264&bitrate=12000&scale=100&drawing&cleanoutput&chroma=000&label=Client" + extraWss +
+      codec + "&bitrate=12000&scale=100&drawing&cleanoutput&chroma=000&label=Client" + extraWss +
       "#p=" + encodeURIComponent(pw);
     $("stage").appendChild(frame);
     startedAt = Date.now();

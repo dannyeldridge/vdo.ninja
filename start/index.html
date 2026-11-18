@@ -90,7 +90,10 @@
     f.allow = "autoplay; fullscreen; camera; microphone; display-capture";
     f.src = src; $("stage").appendChild(f);
     clientUrl = location.origin + "/review/?s=" + sid + (proj ? "&n=" + encodeURIComponent(proj) : "") +
-      "&password=" + encodeURIComponent(pw) + extraWss;
+      "&password=" + encodeURIComponent(pw) + extraWss +
+      // &ff: this edit bay is Firefox. Firefox obeys the H.264 (and AV1) level the client's browser
+      // advertises, which caps it at 1280x720, so the review page stops asking for H.264 and VP8 is used.
+      (/Firefox\//.test(navigator.userAgent) ? "&ff" : "");
     $("clientUrl").textContent = clientUrl.replace(/^https?:\/\//, "");
     $("liveName").textContent = proj || "Untitled session";
     $("liveMode").textContent = fanout ? "Fan-out" : fanoutDown ? "Direct (fan-out unavailable)" : "Direct";
